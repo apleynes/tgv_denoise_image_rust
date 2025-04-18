@@ -4,6 +4,9 @@ use ndarray::linalg;
 use ndarray_linalg::Norm;
 use ndarray_rand::RandomExt;
 use ndarray_rand::rand_distr::Normal;
+use image::{RgbImage, GrayImage};
+use nshare::{self, AsNdarray3};
+
 // fn print_shape(a: Array[T, T]) {
 //     let shape = a.shape();
 //     println!("array shape {}", shape.to_vec());
@@ -114,6 +117,8 @@ fn tgv_denoise(u0: &ArrayView2<f32>, lam: f32, alpha0: f32, alpha1: f32, tau: f3
 
     let mut u_bar = u.clone();
     let mut w_bar = w.clone();
+    let mut u_old;
+    let mut w_old;
 
     for i in 0..n_iter {
         let grad_u_bar = gradient(&u_bar.view());
@@ -124,8 +129,8 @@ fn tgv_denoise(u0: &ArrayView2<f32>, lam: f32, alpha0: f32, alpha1: f32, tau: f3
         q = &q + &q_bar * sigma;
         q = proj_q(&q.view(), &(alpha0 * lam));
 
-        let u_old = &u.clone();
-        let w_old = &w.clone();
+        u_old = u.clone();
+        w_old = w.clone();
 
         u = u - tau * divergence(&p.view());
         u = u + u0 * tau;
@@ -133,8 +138,8 @@ fn tgv_denoise(u0: &ArrayView2<f32>, lam: f32, alpha0: f32, alpha1: f32, tau: f3
 
         w = w - tau * (-&p + sym_divergence(&q.view()));
 
-        u_bar = 2. * &u - u_old;
-        w_bar = 2. * &w - w_old;
+        u_bar = 2. * &u - &u_old;
+        w_bar = 2. * &w - &w_old;
 
         if i % 50 == 0 {
             let primal_res = (&u - u_old).norm();
@@ -147,19 +152,44 @@ fn tgv_denoise(u0: &ArrayView2<f32>, lam: f32, alpha0: f32, alpha1: f32, tau: f3
 fn main() {
     println!("Hello, world!");
 
-    // let u0 = Array2::<f32>::from_shape_vec((8, 8), ndarray::linspace(0., 1.0, 8 * 8).into_iter().collect()).unwrap();
-    let u0 = Array2::<f32>::zeros((8, 8)) + 0.5;
-    let rand = Array2::random((8, 8), 
-        ndarray_rand::rand_distr::Normal::new(0.0, 0.1).unwrap());
-    let u0 = u0 + rand;
-    println!("u0 shape is {:?}", u0.shape());
-    println!("u0 is {:?}", u0);
+    // // let u0 = Array2::<f32>::from_shape_vec((8, 8), ndarray::linspace(0., 1.0, 8 * 8).into_iter().collect()).unwrap();
+    // let u0 = Array2::<f32>::zeros((8, 8)) + 0.5;
+    // let rand = Array2::random((8, 8), 
+    //     ndarray_rand::rand_distr::Normal::new(0.0, 0.1).unwrap());
+    // let u0 = u0 + rand;
+    // println!("u0 shape is {:?}", u0.shape());
+    // println!("u0 is {:?}", u0);
 
-    let u = tgv_denoise(&u0.view(), 1e-12, 2.0, 1.0, 0.125, 0.125, 300);
-    println!("u shape is {:?}", u.shape());
-    println!("u is {:?}", u);
+    // let u = tgv_denoise(&u0.view(), 1e-12, 2.0, 1.0, 0.125, 0.125, 300);
+    // println!("u shape is {:?}", u.shape());
+    // println!("u is {:?}", u);
 
-    println!("diff is {:?}", &u - &u0);
+    // println!("diff is {:?}", &u - &u0);
 
-    println!("compared to original: {:?}", &u - 0.5);
+    // println!("compared to original: {:?}", &u - 0.5);
+    let img: RgbImage = image::open("astronaut.png").unwrap().into_rgb8();
+    let img = img.as_ndarray3();
+    let img = img.permuted_axes([1, 2, 0]);
+    println!("img shape is {:?}", img.shape());
+    println!("img min is {:?}", img.into_iter().min());
+    println!("img max is {:?}", img.into_iter().max());
+    let img: Array3<f32> = img.map(|x| *x as f32);
+    let grayscale_img: Array2<f32> = (&img.slice(s![.., .., 0]) + &img.slice(s![.., .., 1]) + &img.slice(s![.., .., 2])) / 3.0;
+
+    let noise = Array2::random(
+        (img.shape()[0], img.shape()[1]), 
+        ndarray_rand::rand_distr::Normal::new(0.0, 10.).unwrap()
+    );
+    let grayscale_img: Array2<f32> = grayscale_img + noise;
+
+    println!("grayscale_img min is {:?}", (&grayscale_img).into_iter().reduce(|a, b| if a < b { a } else { b }));
+    println!("grayscale_img max is {:?}", (&grayscale_img).into_iter().reduce(|a, b| if a > b { a } else { b }));
+    
+    let noisy_img = GrayImage::from_raw(img.shape()[0] as u32, img.shape()[1] as u32, (&grayscale_img).into_iter().map(|x| *x as u8).collect()).unwrap();
+    noisy_img.save("noisy_img.png").unwrap();
+    let denoised_img = tgv_denoise(&grayscale_img.view(), 1e-3, 2.0, 1.0, 0.125, 0.125, 300);
+    let denoised_img = denoised_img.map(|x| *x as u8);
+    let denoised_img = GrayImage::from_raw(img.shape()[0] as u32, img.shape()[1] as u32, denoised_img.into_iter().collect()).unwrap();
+    denoised_img.save("denoised_img.png").unwrap();
+
 }
