@@ -118,15 +118,42 @@ def tgv_denoise(u0, lam=1.0, alpha0=2.0, alpha1=1.0, tau=0.125, sigma=0.125, n_i
         u_bar = 2 * u - u_old
         w_bar = 2 * w - w_old
 
-        # Optional: print the energy every 50 iterations
-        if (i+1) % 50 == 0:
-            # Compute the residuals (this is just indicative)
-            primal_res = np.linalg.norm(u - u_old)
-            # print(f"Iteration {i+1:03d}, primal change = {primal_res:.4e}")
-            print("Iteration %03d, primal change = %0.4e" % (i+1, primal_res))
+        # # Optional: print the energy every 50 iterations
+        # if (i+1) % 50 == 0:
+        #     # Compute the residuals (this is just indicative)
+        #     primal_res = np.linalg.norm(u - u_old)
+        #     # print(f"Iteration {i+1:03d}, primal change = {primal_res:.4e}")
+        #     print("Iteration %03d, primal change = %0.4e" % (i+1, primal_res))
 
     return u
 
+
+from joblib import Parallel, delayed
+import os
+def parallel_tgv_denoise(u0, lam=1.0, alpha0=2.0, alpha1=1.0, tau=0.125, sigma=0.125, n_iter=300):
+    patch_size = 32
+    
+    H, W = u0.shape
+    num_patches_x = H // patch_size
+    num_patches_y = W // patch_size
+
+    # Create a vector to store the denoised patches
+    patches = []
+    for i in range(num_patches_x):
+        for j in range(num_patches_y):
+            patches.append(u0[i*patch_size:(i+1)*patch_size, j*patch_size:(j+1)*patch_size])
+
+    # Create a vector to store the denoised patches
+    denoised_patches = Parallel(n_jobs=os.cpu_count())(delayed(tgv_denoise)(patch, lam, alpha0, alpha1, tau, sigma, n_iter) for patch in patches)
+
+    # Create a new image to store the denoised patches
+    denoised_img = np.zeros((H, W))
+    for i in range(num_patches_x):
+        for j in range(num_patches_y):
+            denoised_img[i*patch_size:(i+1)*patch_size, j*patch_size:(j+1)*patch_size] = denoised_patches[i*num_patches_y + j]
+
+    return denoised_img
+    
 
 if __name__ == "__main__":
     img = np.array(Image.open("astronaut.png"))
@@ -137,10 +164,10 @@ if __name__ == "__main__":
     noisy_img = np.clip(img, 0, 255).astype(np.uint8)
     Image.fromarray(noisy_img, mode='L').save("noisy_img_py.png")
     print(noisy_img.min(), noisy_img.max())
-    time = timeit.timeit(lambda: tgv_denoise(noisy_img.astype(np.float32), 10., 2.0, 1.0, 0.125, 0.125, 300), number=5)
+    time = timeit.timeit(lambda: parallel_tgv_denoise(noisy_img.astype(np.float32), 10., 2.0, 1.0, 0.125, 0.125, 300), number=5)
     avg_time = time / 5
-    print(f"Time taken: {avg_time} seconds on 10 runs of 300 iterations on average")
-    denoised_img = tgv_denoise(noisy_img.astype(np.float32), 10., 2.0, 1.0, 0.125, 0.125, 300)
+    print(f"Time taken: {avg_time} seconds on 5 runs of 300 iterations on average")
+    denoised_img = parallel_tgv_denoise(noisy_img.astype(np.float32), 10., 2.0, 1.0, 0.125, 0.125, 300)
     print(denoised_img.min(), denoised_img.max())
     denoised_img = np.clip(denoised_img, 0, 255).astype(np.uint8)
     Image.fromarray(denoised_img, mode='L').save("denoised_img_py.png")

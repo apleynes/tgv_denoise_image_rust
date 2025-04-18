@@ -1040,6 +1040,7 @@ dependencies = [
  "ndarray-linalg",
  "ndarray-rand",
  "nshare",
+ "rayon",
  "timeit",
 ]
 

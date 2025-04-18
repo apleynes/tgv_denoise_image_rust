@@ -6,7 +6,7 @@ use ndarray_rand::RandomExt;
 use ndarray_rand::rand_distr::Normal;
 use image::{RgbImage, GrayImage};
 use nshare::{self, AsNdarray3};
-
+use rayon::prelude::*;
 // fn print_shape(a: Array[T, T]) {
 //     let shape = a.shape();
 //     println!("array shape {}", shape.to_vec());
@@ -141,12 +141,45 @@ fn tgv_denoise(u0: &ArrayView2<f32>, lam: f32, alpha0: f32, alpha1: f32, tau: f3
         u_bar = 2. * &u - &u_old;
         w_bar = 2. * &w - &w_old;
 
-        if i % 50 == 0 {
-            let primal_res = (&u - u_old).norm();
-            println!("Iteration {:?}, primal change = {:?}", i, primal_res);
-        }
+        // if i % 50 == 0 {
+        //     let primal_res = (&u - u_old).norm();
+        //     println!("Iteration {:?}, primal change = {:?}", i, primal_res);
+        // }
     }
     u
+}
+
+
+fn parallel_tgv_denoise(u0: &ArrayView2<f32>, lam: f32, alpha0: f32, alpha1: f32, tau: f32, sigma: f32, n_iter: i32) -> Array2<f32> {
+    // Split the image into patches
+    let patch_size = 32;
+    let num_patches_x = u0.shape()[0] / patch_size;
+    let num_patches_y = u0.shape()[1] / patch_size;
+
+    // Create a vector to store the denoised patches
+    // let mut patches: Array3<f32> = Array3::<f32>::zeros((num_patches_x * num_patches_y, patch_size, patch_size));
+    let mut patches = Vec::new();
+    for i in 0..num_patches_x {
+        for j in 0..num_patches_y {
+            // let mut patch_slice = patches.slice_mut(s![i * num_patches_y + j, .., ..]);
+            // patch_slice.assign(&u0.slice(s![(i * patch_size)..((i + 1) * patch_size), (j * patch_size)..((j + 1) * patch_size)]));
+            patches.push(u0.slice(s![(i * patch_size)..((i + 1) * patch_size), (j * patch_size)..((j + 1) * patch_size)]).to_owned());
+        }
+    }
+
+    let denoised_patches: Vec<Array2<f32>> = patches.par_iter().map(|patch| {
+        tgv_denoise(&patch.view(), lam, alpha0, alpha1, tau, sigma, n_iter)
+    }).collect();
+
+    // Create a new image to store the denoised patches
+    let mut denoised_img = Array2::<f32>::zeros((u0.shape()[0], u0.shape()[1]));
+    for i in 0..num_patches_x {
+        for j in 0..num_patches_y {
+            denoised_img.slice_mut(s![(i * patch_size)..((i + 1) * patch_size), (j * patch_size)..((j + 1) * patch_size)]).assign(&denoised_patches[i * num_patches_y + j]);
+        }
+    }
+
+    return denoised_img;
 }
 
 fn main() {
@@ -188,7 +221,7 @@ fn main() {
     let noisy_img = GrayImage::from_raw(img.shape()[0] as u32, img.shape()[1] as u32, (&grayscale_img).into_iter().map(|x| *x as u8).collect()).unwrap();
     noisy_img.save("noisy_img.png").unwrap();
 
-    let avg_time = timeit::timeit_loops!(5, {tgv_denoise(&grayscale_img.view(), 10.0, 2.0, 1.0, 0.125, 0.125, 300);});
+    let avg_time = timeit::timeit_loops!(5, {parallel_tgv_denoise(&grayscale_img.view(), 10.0, 2.0, 1.0, 0.125, 0.125, 300);});
     println!("Time taken: {:?} seconds on 5 runs of 300 iterations on average", avg_time);
 
 
