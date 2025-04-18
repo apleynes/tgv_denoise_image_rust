@@ -1,5 +1,6 @@
 import numpy as np
 from PIL import Image
+import timeit
 
 # Define finite-difference gradient operator
 def gradient(u):
@@ -136,6 +137,9 @@ if __name__ == "__main__":
     noisy_img = np.clip(img, 0, 255).astype(np.uint8)
     Image.fromarray(noisy_img, mode='L').save("noisy_img_py.png")
     print(noisy_img.min(), noisy_img.max())
+    time = timeit.timeit(lambda: tgv_denoise(noisy_img.astype(np.float32), 10., 2.0, 1.0, 0.125, 0.125, 300), number=5)
+    avg_time = time / 5
+    print(f"Time taken: {avg_time} seconds on 10 runs of 300 iterations on average")
     denoised_img = tgv_denoise(noisy_img.astype(np.float32), 10., 2.0, 1.0, 0.125, 0.125, 300)
     print(denoised_img.min(), denoised_img.max())
     denoised_img = np.clip(denoised_img, 0, 255).astype(np.uint8)

@@ -187,6 +187,11 @@ fn main() {
 
     let noisy_img = GrayImage::from_raw(img.shape()[0] as u32, img.shape()[1] as u32, (&grayscale_img).into_iter().map(|x| *x as u8).collect()).unwrap();
     noisy_img.save("noisy_img.png").unwrap();
+
+    let avg_time = timeit::timeit_loops!(5, {tgv_denoise(&grayscale_img.view(), 10.0, 2.0, 1.0, 0.125, 0.125, 300);});
+    println!("Time taken: {:?} seconds on 5 runs of 300 iterations on average", avg_time);
+
+
     let denoised_img = tgv_denoise(&grayscale_img.view(), 10.0, 2.0, 1.0, 0.125, 0.125, 300);
     let denoised_img = denoised_img.map(|x| *x as u8);
     let denoised_img = GrayImage::from_raw(img.shape()[0] as u32, img.shape()[1] as u32, denoised_img.into_iter().collect()).unwrap();
