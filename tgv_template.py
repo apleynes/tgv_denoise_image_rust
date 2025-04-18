@@ -34,9 +34,11 @@ def sym_divergence(q):
     H, W, _ = q.shape
     sym_div = np.zeros((H, W, 2))
     # For the first component:
-    sym_div[:, :, 0] = -(q[:, :, 0] - np.roll(q[:, :, 0], 1, 1)) - 0.5*(q[:, :, 2] - np.roll(q[:, :, 2], 1, 0))
+    sym_div[:, :, 0] = -(q[:, :, 0] - np.roll(q[:, :, 0], 1, 1)) \
+        - 0.5*(q[:, :, 2] - np.roll(q[:, :, 2], 1, 0))
     # For the second component:
-    sym_div[:, :, 1] = -(q[:, :, 1] - np.roll(q[:, :, 1], 1, 0)) - 0.5*(q[:, :, 2] - np.roll(q[:, :, 2], 1, 1))
+    sym_div[:, :, 1] = -(q[:, :, 1] - np.roll(q[:, :, 1], 1, 0)) \
+        - 0.5*(q[:, :, 2] - np.roll(q[:, :, 2], 1, 1))
     return sym_div
 
 # Projection onto the l2-ball for dual variable p (pointwise)

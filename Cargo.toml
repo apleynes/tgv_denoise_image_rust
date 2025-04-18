@@ -6,3 +6,6 @@ edition = "2024"
 [dependencies]
 image = "0.25.6"
 ndarray = "0.16.1"
+ndarray-linalg = "0.17.0"
+ndarray-rand = "0.15.0"
+nshare = "0.10.0"
