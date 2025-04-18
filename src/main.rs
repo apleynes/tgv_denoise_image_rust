@@ -84,12 +84,12 @@ fn proj_p(p: &ArrayView3<f32>, alpha1: &f32) -> Array3<f32> {
     let norm = (p.slice(s![.., .., 0]).map(|x| x.powi(2)) 
         + p.slice(s![.., .., 1]).map(|x| x.powi(2)))
         .sqrt();
-    let factor = norm.map(|x| if x > alpha1 { 1. } else { x / alpha1 });
+    let factor = norm.map(|x| if (x / alpha1) > 1. { x / alpha1 } else { 1. });
     let mut p_proj = p.to_owned();
     let mut slice1 = p_proj.slice_mut(s![.., .., 0]);
-    slice1 *= &factor;
+    slice1 /= &factor;
     let mut slice2 = p_proj.slice_mut(s![.., .., 1]);
-    slice2 *= &factor;
+    slice2 /= &factor;
     p_proj
 }
 
@@ -98,14 +98,14 @@ fn proj_q(q: &ArrayView3<f32>, alpha0: &f32) -> Array3<f32> {
         + q.slice(s![.., .., 1]).map(|x| x.powi(2)) 
         + q.slice(s![.., .., 2]).map(|x| x.powi(2)))
         .sqrt();
-    let factor = norm.map(|x| if x > alpha0 { 1. } else { x / alpha0 });
+    let factor = norm.map(|x| if (x / alpha0) > 1. { x / alpha0 } else { 1. });
     let mut q_proj = q.to_owned();
     let mut slice1 = q_proj.slice_mut(s![.., .., 0]);
-    slice1 *= &factor;
+    slice1 /= &factor;
     let mut slice2 = q_proj.slice_mut(s![.., .., 1]);
-    slice2 *= &factor;
+    slice2 /= &factor;
     let mut slice3 = q_proj.slice_mut(s![.., .., 2]);
-    slice3 *= &factor;
+    slice3 /= &factor;
     q_proj
 }
 
@@ -184,10 +184,10 @@ fn main() {
 
     println!("grayscale_img min is {:?}", (&grayscale_img).into_iter().reduce(|a, b| if a < b { a } else { b }));
     println!("grayscale_img max is {:?}", (&grayscale_img).into_iter().reduce(|a, b| if a > b { a } else { b }));
-    
+
     let noisy_img = GrayImage::from_raw(img.shape()[0] as u32, img.shape()[1] as u32, (&grayscale_img).into_iter().map(|x| *x as u8).collect()).unwrap();
     noisy_img.save("noisy_img.png").unwrap();
-    let denoised_img = tgv_denoise(&grayscale_img.view(), 1e-3, 2.0, 1.0, 0.125, 0.125, 300);
+    let denoised_img = tgv_denoise(&grayscale_img.view(), 10.0, 2.0, 1.0, 0.125, 0.125, 300);
     let denoised_img = denoised_img.map(|x| *x as u8);
     let denoised_img = GrayImage::from_raw(img.shape()[0] as u32, img.shape()[1] as u32, denoised_img.into_iter().collect()).unwrap();
     denoised_img.save("denoised_img.png").unwrap();

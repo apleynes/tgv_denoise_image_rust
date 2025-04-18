@@ -136,7 +136,7 @@ if __name__ == "__main__":
     noisy_img = np.clip(img, 0, 255).astype(np.uint8)
     Image.fromarray(noisy_img, mode='L').save("noisy_img_py.png")
     print(noisy_img.min(), noisy_img.max())
-    denoised_img = tgv_denoise(noisy_img.astype(np.float32), 1e-3, 2.0, 1.0, 0.125, 0.125, 300)
+    denoised_img = tgv_denoise(noisy_img.astype(np.float32), 10., 2.0, 1.0, 0.125, 0.125, 300)
     print(denoised_img.min(), denoised_img.max())
     denoised_img = np.clip(denoised_img, 0, 255).astype(np.uint8)
     Image.fromarray(denoised_img, mode='L').save("denoised_img_py.png")
