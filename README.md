@@ -17,6 +17,7 @@ Roadmap:
 - [x] Add basic benchmarks vs Python implementation
 - [X] Parallelize the denoising on patches
 - [X] Parallel benchmarks vs Python implementation
+- [x] Package as Python module
 - [ ] Handle patch overlaps to avoid edge effects
 - [ ] Package as CLI tool
 

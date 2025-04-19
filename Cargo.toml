@@ -3,11 +3,16 @@ name = "tgv_denoise_image"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies]
 image = "0.25.6"
 ndarray = "0.16.1"
 ndarray-linalg = "0.17.0"
 ndarray-rand = "0.15.0"
 nshare = "0.10.0"
+numpy = "0.24.0"
+pyo3 = { version = "0.24.1", features = ["extension-module"] }
 rayon = "1.10.0"
 timeit = "0.1.2"
